@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>사진 스탬프</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#14171c;--sub:#6b7280;--ac:#f5a623;--bd:#dfe3e8;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1013;--card:#1a1d22;--tx:#f1f3f5;--sub:#9aa3ad;--bd:#2c3139;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1013;--card:#1a1d22;--tx:#f1f3f5;--sub:#9aa3ad;--bd:#2c3139;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:480px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+#clock{font-size:52px;font-weight:700;letter-spacing:-1px}
+#date{color:var(--sub);margin-top:2px}
+label.f{display:block;font-size:12px;color:var(--sub);margin:10px 0 4px}
+input[type=text]{width:100%;font-size:17px;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
+.tg{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:14px}
+.tg label{display:flex;align-items:center;gap:5px}
+.btn{display:block;width:100%;text-align:center;font-size:18px;font-weight:700;padding:15px;border-radius:12px;border:0;background:var(--ac);color:#111;cursor:pointer}
+.btn.s{background:var(--card);color:var(--tx);border:1px solid var(--bd);font-weight:600;margin-top:8px}
+#res{display:none}
+#res img{width:100%;border-radius:10px;display:block;-webkit-touch-callout:default;-webkit-user-select:auto}
+.hint{font-size:13px;color:var(--sub);text-align:center;margin:8px 0}
+#file{display:none}
+</style>
+</head>
+<body>
+<main>
+<div id="cap">
+  <div class="card">
+    <div id="clock">--:--</div>
+    <div id="date"></div>
+  </div>
+  <div class="card">
+    <label class="f" for="pn">P/N</label>
+    <input type="text" id="pn" placeholder="예: 0190-12345" autocapitalize="characters" autocomplete="off">
+    <label class="f" for="addr">주소 (한 번 입력하면 기억됨)</label>
+    <input type="text" id="addr" autocomplete="off">
+    <div class="tg">
+      <label><input type="checkbox" id="oT" checked>시간</label>
+      <label><input type="checkbox" id="oD" checked>날짜</label>
+      <label><input type="checkbox" id="oL" checked>주소</label>
+      <label><input type="checkbox" id="oP" checked>P/N</label>
+    </div>
+  </div>
+  <label class="btn" for="file">📷 촬영</label>
+  <input type="file" id="file" accept="image/*" capture="environment">
+  <label class="btn s" for="file2" style="margin-top:8px">🖼 앨범에서 선택</label>
+  <input type="file" id="file2" accept="image/*">
+  <p class="hint">📷 촬영 버튼을 누르면 앱이 닫히는 경우<br>카메라로 먼저 찍고 “앨범에서 선택”을 쓰세요</p>
+</div>
+
+<div id="res">
+  <div class="card"><img id="out" alt="결과 사진"></div>
+  <button class="btn" id="save">저장 (공유창 → 이미지 저장)</button>
+  <button class="btn s" id="open">전체화면으로 보기 (길게 눌러 저장)</button>
+  <p class="hint" id="st"></p>
+  <button class="btn s" id="next">다음 사진</button>
+</div>
+<div id="ov" style="display:none;position:fixed;inset:0;background:#000;z-index:9;overflow:auto;text-align:center">
+  <div style="color:#fff;padding:14px;font-weight:700;font-size:16px">사진을 길게 눌러 → “사진에 추가”</div>
+  <img id="ovimg" alt="저장용 사진" style="width:100%;display:block;-webkit-touch-callout:default">
+  <button class="btn s" id="ovx" style="margin:14px auto;width:90%">닫기</button>
+</div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const DAYS=["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
+const DEF_ADDR="경기 평택시 진위면 가곡5길 122";
+const p2=n=>String(n).padStart(2,"0");
+const fT=d=>p2(d.getHours())+":"+p2(d.getMinutes());
+const fD=d=>d.getFullYear()+"년"+p2(d.getMonth()+1)+"월"+p2(d.getDate())+"일";
+let blob=null, fname="photo.jpg", bu="", du="";
+
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v)}catch(e){return ""}}
+$("pn").value=store("ps_pn");
+$("addr").value=store("ps_addr")||DEF_ADDR;
+["pn","addr"].forEach(i=>$(i).addEventListener("input",()=>store("ps_"+i,$(i).value)));
+
+function tick(){const d=new Date();$("clock").textContent=fT(d);$("date").textContent=fD(d)+" "+DAYS[d.getDay()]}
+tick(); setInterval(tick,1000);
+
+function wrap(ctx,text,maxW){
+  const out=[];let line="";
+  for(const ch of text){
+    if(ctx.measureText(line+ch).width>maxW&&line){out.push(line);line=ch}else line+=ch;
+  }
+  if(line)out.push(line);return out;
+}
+
+function render(img,now){
+  const MAX=1920;let w=img.naturalWidth,h=img.naturalHeight;
+  const k=Math.min(1,MAX/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const x=c.getContext("2d");x.drawImage(img,0,0,w,h);
+  const s=Math.min(w,h)/1080, pad=40*s;
+  const useT=$("oT").checked,useD=$("oD").checked,useL=$("oL").checked,useP=$("oP").checked;
+  const pn=$("pn").value.trim(), addr=$("addr").value.trim();
+  const locTxt=useL?addr:"";
+  const gh=h*0.34;
+  const g=x.createLinearGradient(0,h-gh,0,h);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.6)");
+  x.fillStyle=g;x.fillRect(0,h-gh,w,gh);
+  const F='-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  x.textBaseline="alphabetic";x.shadowColor="rgba(0,0,0,.7)";x.shadowBlur=8*s;x.fillStyle="#fff";
+  let y=h-pad;
+  if(useP&&pn){x.font="700 "+46*s+"px "+F;x.fillStyle="#ffd36b";x.fillText("P/N  "+pn,pad,y);y-=64*s;x.fillStyle="#fff"}
+  if(locTxt){
+    x.font="500 "+34*s+"px "+F;
+    const ls=wrap(x,locTxt,w-pad*2);
+    for(let i=ls.length-1;i>=0;i--){x.fillText(ls[i],pad,y);y-=46*s}
+    y-=10*s;
+  }
+  if(useT||useD){
+    let tx=pad;
+    if(useT){
+      x.font="700 "+150*s+"px "+F;x.fillText(fT(now),pad,y);
+      tx=pad+x.measureText(fT(now)).width+26*s;
+      if(useD){x.fillStyle="#f5a623";x.fillRect(tx,y-130*s,6*s,130*s);tx+=26*s;x.fillStyle="#fff"}
+    }
+    if(useD){
+      x.font="600 "+44*s+"px "+F;x.fillText(fD(now),tx,y-62*s);
+      x.font="500 "+44*s+"px "+F;x.fillText(DAYS[now.getDay()],tx,y-6*s);
+    }
+  }
+  return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("이미지 변환 실패")),"image/jpeg",0.92));
+}
+
+function onFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const now=new Date();
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=async()=>{
+    try{
+      blob=await render(img,now);
+      const pn=$("pn").value.trim().replace(/[\\/:*?"<>|\s]+/g,"-")||"photo";
+      fname=pn+"_"+now.getFullYear()+p2(now.getMonth()+1)+p2(now.getDate())+"_"+p2(now.getHours())+p2(now.getMinutes())+p2(now.getSeconds())+".jpg";
+      bu=URL.createObjectURL(blob);
+      du=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r("");fr.readAsDataURL(blob)});
+      $("out").src=du||bu;
+      $("cap").style.display="none";$("res").style.display="block";window.scrollTo(0,0);
+    }catch(err){alert("처리 오류: "+err.message)}
+    URL.revokeObjectURL(url);
+  };
+  img.onerror=()=>alert("사진을 불러오지 못했어요. 다시 시도해 주세요.");
+  img.src=url;e.target.value="";
+}
+$("file").addEventListener("change",onFile);$("file2").addEventListener("change",onFile);
+
+function openOv(){$("ovimg").src=du||bu;$("ov").style.display="block";$("ov").scrollTop=0}
+$("open").addEventListener("click",openOv);
+$("ovx").addEventListener("click",()=>{$("ov").style.display="none"});
+
+$("save").addEventListener("click",async()=>{
+  if(!blob)return;
+  const file=new File([blob],fname,{type:"image/jpeg"});
+  let why="";
+  if(!navigator.share)why="공유 기능 없음";
+  else if(!navigator.canShare||!navigator.canShare({files:[file]}))why="파일 공유 미지원";
+  else{
+    try{await navigator.share({files:[file]});$("st").textContent="";return}
+    catch(e){if(e&&e.name==="AbortError")return;why="공유 오류("+(e&&e.name||e)+")"}
+  }
+  $("st").textContent=why+" → 전체화면에서 길게 눌러 저장하세요";
+  openOv();
+});
+
+$("next").addEventListener("click",()=>{
+  $("res").style.display="none";$("cap").style.display="block";blob=null;du="";$("st").textContent="";
+});
+</script>
+</body>
+</html>

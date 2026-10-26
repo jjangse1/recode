@@ -141,7 +141,7 @@ function onFile(e){
       bu=URL.createObjectURL(blob);
       du=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r("");fr.readAsDataURL(blob)});
       $("out").src=du||bu;
-      $("cap").style.display="none";$("res").style.display="block";window.scrollTo(0,0);
+      $("cap").style.display="none";$("res").style.display="block";window.scrollTo(0,0);autoSave();
     }catch(err){alert("처리 오류: "+err.message)}
     URL.revokeObjectURL(url);
   };
@@ -150,6 +150,17 @@ function onFile(e){
 }
 $("file").addEventListener("change",onFile);$("file2").addEventListener("change",onFile);
 
+async function autoSave(){
+  if(!blob)return;
+  const file=new File([blob],fname,{type:"image/jpeg"});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});$("st").textContent="✅ 저장 단계 완료";return}
+  }catch(e){if(e&&e.name==="AbortError")return}
+  try{
+    const a=document.createElement("a");a.href=bu;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+    $("st").textContent="파일 앱(다운로드)에 자동 저장을 시도했어요. 사진 앱에는 아래 저장 버튼을 누르세요";
+  }catch(e){$("st").textContent="자동 저장 실패 → 아래 저장 버튼을 누르세요"}
+}
 function openOv(){$("ovimg").src=du||bu;$("ov").style.display="block";$("ov").scrollTop=0}
 $("open").addEventListener("click",openOv);
 $("ovx").addEventListener("click",()=>{$("ov").style.display="none"});

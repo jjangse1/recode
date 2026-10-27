@@ -38,18 +38,21 @@ input[type=text]{width:100%;font-size:17px;padding:11px;border-radius:10px;borde
     <input type="text" id="pn" placeholder="예: 0190-12345" autocapitalize="characters" autocomplete="off">
     <label class="f" for="addr">주소 (한 번 입력하면 기억됨)</label>
     <input type="text" id="addr" autocomplete="off">
+    <label class="f" for="un">User Name (한 번 입력하면 기억됨)</label>
+    <input type="text" id="un" placeholder="이름" autocomplete="off">
     <div class="tg">
       <label><input type="checkbox" id="oT" checked>시간</label>
       <label><input type="checkbox" id="oD" checked>날짜</label>
       <label><input type="checkbox" id="oL" checked>주소</label>
       <label><input type="checkbox" id="oP" checked>P/N</label>
+      <label><input type="checkbox" id="oN" checked>이름</label>
     </div>
   </div>
   <label class="btn" for="file">📷 촬영</label>
   <input type="file" id="file" accept="image/*" capture="environment">
   <label class="btn s" for="file2" style="margin-top:8px">🖼 앨범에서 선택</label>
   <input type="file" id="file2" accept="image/*">
-  <p class="hint">📷 촬영 버튼을 누르면 앱이 닫히는 경우<br>카메라로 먼저 찍고 “앨범에서 선택”을 쓰세요</p>
+  <p class="hint">📷 촬영 버튼을 누르면 앱이 닫히는 경우<br>카메라로 먼저 찍고 “앨범에서 선택”을 쓰세요<br>제작자:semin.jang </p>
 </div>
 
 <div id="res">
@@ -76,9 +79,9 @@ const fD=d=>d.getFullYear()+"년"+p2(d.getMonth()+1)+"월"+p2(d.getDate())+"일"
 let blob=null, fname="photo.jpg", bu="", du="";
 
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v)}catch(e){return ""}}
-$("pn").value=store("ps_pn");
+$("pn").value=store("ps_pn");$("un").value=store("ps_un");
 $("addr").value=store("ps_addr")||DEF_ADDR;
-["pn","addr"].forEach(i=>$(i).addEventListener("input",()=>store("ps_"+i,$(i).value)));
+["pn","addr","un"].forEach(i=>$(i).addEventListener("input",()=>store("ps_"+i,$(i).value)));
 
 function tick(){const d=new Date();$("clock").textContent=fT(d);$("date").textContent=fD(d)+" "+DAYS[d.getDay()]}
 tick(); setInterval(tick,1000);
@@ -105,6 +108,8 @@ function render(img,now){
   x.fillStyle=g;x.fillRect(0,h-gh,w,gh);
   const F='-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
   x.textBaseline="alphabetic";x.shadowColor="rgba(0,0,0,.7)";x.shadowBlur=8*s;x.fillStyle="#fff";
+  const un=$("un").value.trim();
+  if($("oN").checked&&un){x.font="600 "+38*s+"px "+F;x.textAlign="right";x.fillText(un,w-pad,h-pad);x.textAlign="left"}
   let y=h-pad;
   if(useP&&pn){x.font="700 "+46*s+"px "+F;x.fillStyle="#ffd36b";x.fillText("P/N  "+pn,pad,y);y-=64*s;x.fillStyle="#fff"}
   if(locTxt){
